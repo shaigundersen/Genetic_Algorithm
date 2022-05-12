@@ -52,14 +52,14 @@ class GeneticAlgo(ABC):
         self.best_sol = None
 
     def run(self):
-        best_score = -1
+        best_score =  5*4*2 + 2 + 8 + 1
         generations_scores = []
         gen = 1
         while not self.found_sol:
             # eval sols
             scores = self.eval_population()
-            cur_best = max(scores)
-            if cur_best > best_score:
+            cur_best = min(scores)
+            if cur_best < best_score:
                 best_score = cur_best
             if gen % 100 == 0:
                 print("------------------------------")
@@ -68,63 +68,68 @@ class GeneticAlgo(ABC):
                 print(f'avg score -> {sum(scores)/len(scores)}')
             generations_scores.append(scores)
             weighted_population = self.create_weighted_population(scores)
-            self.create_new_population(weighted_population)
+            self.create_new_population(weighted_population, scores)
             gen += 1
 
-    def create_new_population(self, weighted_population):
+    def create_new_population(self, weighted_population, scores):
         new_pop = []
-        for i in range(self.population_size):  # generate new population with fixed size
+        # elitism
+        elite_size = int(self.population_size * 0.25)
+        result = sorted(zip(self.population, scores), key=lambda tup: tup[1])
+        for i in range(elite_size):
+            new_pop.append(result[i][0])
+        # elita = result[:elite_size]
+        # new_pop += elita
+        for i in range(self.population_size - elite_size):  # generate new population with fixed size
             parents = random.sample(weighted_population, 2)
             sol_A, sol_B = parents[0], parents[1]
-            sol_A = sol_A.mutate(0.2)
-            sol_B = sol_B.mutate(0.2)
+            sol_A = sol_A.mutate(0.5)
+            sol_B = sol_B.mutate(0.5)
             child_sol = sol_A.crossover(sol_B)
             new_pop.append(child_sol)
         self.population = new_pop
 
+    @abstractmethod
+    def optimize_elite(self, elite):
+        pass
     def create_weighted_population(self, scores):
         weighted_population = []
+        worst_score = 5*4*2 + 2 + 8
         for i, solution in enumerate(self.population):
-            for j in range(scores[i]):
+            for j in range(worst_score - scores[i]):
                 weighted_population.append(solution)
         return weighted_population
 
     def eval_population(self):
         scores = []
         for solution in self.population:
-            score = solution.fitness()
-            # score = self._eval_solution(solution)
-            if score == (len(self.constraints) + len(solution)*len(solution)):  # all constraints are met
+            score = solution.fitness(self.constraints)
+            if score == 0:  # all constraints are met
                 self.found_sol = True
                 self.best_sol = copy.deepcopy(solution)
             scores.append(score)
         return scores
 
-    def _eval_solution(self, solution):
-        """ returns number of satisfied constraints """
-        count = 0
-        for constraint in self.constraints:
-            if solution.satisfy(constraint):
-                count += 1
 
-        count += solution.valid()
-        return count
+class LamarckAlgo(GeneticAlgo):
+    def __init__(self, population_size, solution_factory: SolutionFactory, constraints, allow_opt=5):
+        super().__init__(population_size, solution_factory, constraints)
+        self.allow_opt = allow_opt
 
+    def optimize_elite(self, elite):
+        for i in range(self.allow_opt):
+            if i < len(elite):
+                elite[i].optimize()
 
 
 if __name__ == '__main__':
-    # init_vect = sum([range(1, 10)] * 9, [])
-    m = [[1,2,3],[4,5,6],[7,8,9]]
-    print(m)
-    print(list(zip(*m)))
-    #
-    # input_dict = parse_input(io='./input.txt')
-    # n = input_dict['N']
-    # msf = MatrixSolutionFactory(n, input_dict['mat_init'])
-    # constraints = input_dict['constraints']
-    # ga = GeneticAlgo(100, msf, constraints)
-    # ga.run()
-    # if ga.best_sol:
-    #     ga.best_sol.print_solution()
+    input_dict = parse_input(io='./input.txt')
+    n = input_dict['N']
+    msf = MatrixSolutionFactory(n, input_dict['mat_init'])
+    constraints = input_dict['constraints']
+    ga = GeneticAlgo(100, msf, constraints)
+    ga.run()
+    if ga.best_sol:
+        ga.best_sol.print_solution()
 
 

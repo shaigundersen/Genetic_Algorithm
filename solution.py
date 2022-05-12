@@ -17,19 +17,7 @@ class Solution(ABC):
         pass
 
     @abstractmethod
-    def satisfy(self, constraint):
-        pass
-
-    @abstractmethod
-    def __len__(self):
-        pass
-
-    @abstractmethod
-    def valid(self):
-        pass
-
-    @abstractmethod
-    def fitness(self):
+    def fitness(self, constraints):
         pass
 
 
@@ -48,7 +36,7 @@ class MatrixSolution(Solution):
             base_permutation_copy = copy.deepcopy(base_permutation)
             random.shuffle(base_permutation_copy)
             self.__solution.append(base_permutation_copy)
-        self._conform_seed()  # initial solution has to conform with seed
+        # self._conform_seed()  # initial solution has to conform with seed
 
 
     def _conform_seed(self):
@@ -78,7 +66,7 @@ class MatrixSolution(Solution):
             temp = sol_copy.__solution[row][cols[0]]
             sol_copy.__solution[row][cols[0]] = sol_copy.__solution[row][cols[1]]
             sol_copy.__solution[row][cols[1]] = temp
-        sol_copy._conform_seed()
+        # sol_copy._conform_seed()
         return sol_copy
 
     def crossover(self, solution: 'MatrixSolution'):
@@ -92,7 +80,7 @@ class MatrixSolution(Solution):
         new_sol = self.__solution[:row]
         new_sol += solution.__solution[row:]
         sol_copy.__solution = new_sol
-        sol_copy._conform_seed()
+        # sol_copy._conform_seed()
         return sol_copy
 
     def print_solution(self):
@@ -121,16 +109,26 @@ class MatrixSolution(Solution):
                         count += 1
         return count
 
-    def fitness(self):
+    def fitness(self, constraints):
         # calc diff elements in each ROW
         fit = self.__consistent(self.__solution)
         # calc diff elements in each COL
         fit += self.__consistent(zip(*self.__solution))
         # calc diff from seed (given digits)
         fit += self.__compare_to_seed()
+        # calc diff greater sign
+        fit += self._eval_greater_constraints(constraints)
         return fit
 
-    def satisfy(self, constraint):
+    def _eval_greater_constraints(self, constraints):
+        """ returns number of satisfied constraints """
+        count = 0
+        for constraint in constraints:
+            if not self.__greater_sign(constraint):
+                count += 1
+        return count
+
+    def __greater_sign(self, constraint):
         big, small = constraint
         return self.__solution[big[0] - 1][big[1] - 1] > self.__solution[small[0] - 1][small[1] - 1]
 

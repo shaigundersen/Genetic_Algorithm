@@ -17,39 +17,20 @@ class Solution(ABC):
         pass
 
     @abstractmethod
-    def fitness(self, constraints):
+    def fitness(self, constraints, seeded_solution):
         pass
 
 
 
 class MatrixSolution(Solution):
-    def __init__(self, N, seeds):
+    def __init__(self, N):
         self.__N = N
         self.__solution = []
-        self.__seeded_solution = [[0 for j in range(N)] for i in range(N)]
-        for seed in seeds:
-            i, j, num = seed
-            self.__seeded_solution[i - 1][j - 1] = num
-
         base_permutation = list(range(1, N + 1))  # create list of [1,2,..,N]
         for i in range(N):
             base_permutation_copy = copy.deepcopy(base_permutation)
             random.shuffle(base_permutation_copy)
             self.__solution.append(base_permutation_copy)
-        # self._conform_seed()  # initial solution has to conform with seed
-
-
-    def _conform_seed(self):
-        """ make this solution conform with given seed """
-        N = len(self.__solution)
-        for i in range(N):
-            for j in range(N):
-                if self.__seeded_solution[i][j] != 0 and self.__solution[i][j] != self.__seeded_solution[i][j]:
-                    # swap places with where seed is supposed to be
-                    idx = self.__solution[i].index(self.__seeded_solution[i][j])
-                    temp = self.__solution[i][j]
-                    self.__solution[i][j] = self.__solution[i][idx]
-                    self.__solution[i][idx] = temp
 
     def mutate(self, percent):
         """
@@ -99,25 +80,25 @@ class MatrixSolution(Solution):
         """ returns num of diff elements in each row. Best case is 0 when each row is a permutation """
         return sum(self.__N - len(set(row)) for row in solution)
 
-    def __compare_to_seed(self):
+    def __compare_to_seed(self, seeded_solution: 'MatrixSolution'):
         """ count number of mismatches between initial seeded solution with current solution """
         count = 0
-        for seed_row, row in zip(self.__seeded_solution, self.__solution):
+        for seed_row, row in zip(seeded_solution.__solution, self.__solution):
             for x_sr, x_r in zip(seed_row, row):
                 if x_sr:  # when x_sr == 0 -> no seed
                     if x_sr != x_r:  # mismatch
                         count += 1
         return count
 
-    def fitness(self, constraints):
+    def fitness(self, greater_constraints, seeded_solution):
         # calc diff elements in each ROW
         fit = self.__consistent(self.__solution)
         # calc diff elements in each COL
         fit += self.__consistent(zip(*self.__solution))
         # calc diff from seed (given digits)
-        fit += self.__compare_to_seed()
+        fit += self.__compare_to_seed(seeded_solution)
         # calc diff greater sign
-        fit += self._eval_greater_constraints(constraints)
+        fit += self._eval_greater_constraints(greater_constraints)
         return fit
 
     def _eval_greater_constraints(self, constraints):
@@ -132,30 +113,54 @@ class MatrixSolution(Solution):
         big, small = constraint
         return self.__solution[big[0] - 1][big[1] - 1] > self.__solution[small[0] - 1][small[1] - 1]
 
-    def valid(self):
-        """ count number of distinct elements in a col """
-        N = len(self.__solution)
-        count = 0
-        for j in range(N):
-            s = set([])
-            for i in range(N):
-                s.add(self.__solution[i][j])
-            count += len(s)
-        return count
+    @classmethod
+    def get_seeded_solution(cls, N, seeds):
+        sol = cls(N)
+        sol.__solution = [[0 for j in range(N)] for i in range(N)]
+        for seed in seeds:
+            i, j, num = seed
+            sol.__solution[i - 1][j - 1] = num
+        return sol
 
-    def __len__(self):
-        return len(self.__solution)
 
 class SolutionFactory(ABC):
     @abstractmethod
-    def generate_solution(self) -> Solution:
+    def generate_random_solution(self, N) -> Solution:
+        pass
+    @abstractmethod
+    def generate_seeded_solution(self, N, seeds) -> Solution:
         pass
 
 
 class MatrixSolutionFactory(SolutionFactory):
-    def __init__(self, N, seed):
-        self.__matrix_size = N
-        self.__seed = seed
 
-    def generate_solution(self) -> MatrixSolution:
-        return MatrixSolution(self.__matrix_size, self.__seed)
+    def generate_random_solution(self, N) -> MatrixSolution:
+        return MatrixSolution(N)
+
+    def generate_seeded_solution(self, N, seeds) -> MatrixSolution:
+        return MatrixSolution.get_seeded_solution(N, seeds)
+
+
+class FPuzzle:
+    def __init__(self, N, greater_constraints, seed_constraints, factory: SolutionFactory):
+        self.__board_size = N
+        self.__greater_constraints = greater_constraints
+        self.__seed_constraints = seed_constraints
+        self.__factory = factory
+        self.__seeded_solution = factory.generate_seeded_solution(self.__board_size, self.__seed_constraints)
+
+    def get_size(self):
+        return self.__board_size
+
+    def get_max_constraints(self):
+        return self.__board_size * (self.__board_size - 1) * 2 \
+               + len(self.__greater_constraints) + len(self.__seed_constraints)
+
+    def fitness_func(self, solution: Solution):
+        return solution.fitness(self.__greater_constraints, self.__seeded_solution)
+
+    def is_terminal_state(self, score):
+        return score == 0
+
+    def get_random_solution(self) -> Solution:
+        return self.__factory.generate_random_solution(self.__board_size)

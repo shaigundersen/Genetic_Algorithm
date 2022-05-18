@@ -100,10 +100,11 @@ class GeneticAlgo(ABC):
         best = []
         worst = []
         generations = []
-        for i, row in enumerate(self.gen_scores):
-            best.append(max(row))
-            worst.append(min(row))
-            avg.append(sum(row) / len(row))
+        for i, stats in enumerate(self.gen_scores):
+            best_score, worst_score, avg_score = stats
+            best.append(best_score)
+            worst.append(worst_score)
+            avg.append(avg_score)
             generations.append(i + 1)
 
         width = 0.3  # the width of the bars
@@ -152,12 +153,14 @@ class GeneticAlgo(ABC):
         return [self.puzzle.get_random_solution() for i in range(self.population_size)]
 
     def save_stats(self, population_to_score: dict[Solution, int]):
-        best_score, worst_score = self.puzzle.get_best_worst_score(population_to_score)
-        self.gen_scores.append((best_score, worst_score))
+        best_score, worst_score, avg_score = self.puzzle.get_best_worst_avg_score(population_to_score)
+        self.gen_scores.append((best_score, worst_score, avg_score))
 
     def print_gen_stats(self):
-        best_score, worst_score = self.gen_scores[-1]
-        print(f'Gen No. {len(self.gen_scores)}\tBest score {best_score}\tWorst score {worst_score}')
+        best_score, worst_score, avg_score = self.gen_scores[-1]
+        print(
+            f'Gen No. {len(self.gen_scores)}\tBest score {best_score}\tWorst score {worst_score}\tAvg score {avg_score}'
+        )
 
 class BasicGeneticAlgo(GeneticAlgo):
     def eval_population(self, population: list[Solution]):

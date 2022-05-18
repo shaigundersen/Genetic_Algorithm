@@ -207,12 +207,14 @@ class FPuzzle:
     def get_random_solution(self) -> Solution:
         return self.__factory.generate_random_solution(self.__board_size)
 
-    def get_best_worst_score(self, population_to_score: dict[Solution, int]):
+    def get_best_worst_avg_score(self, population_to_score: dict[Solution, int]):
         best_score = self.get_max_constraints()  # being best means close to 0
         worst_score = 0  # being worst means close to num constraints
+        sum = 0
         for score in population_to_score.values():
             if score < best_score:
                 best_score = score
             if score > worst_score:
                 worst_score = score
-        return best_score, worst_score
+            sum += score
+        return best_score, worst_score, sum / len(population_to_score)

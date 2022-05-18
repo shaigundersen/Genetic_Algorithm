@@ -173,9 +173,6 @@ class BasicGeneticAlgo(GeneticAlgo):
 
 
 class LamarckAlgo(GeneticAlgo):
-    def __init__(self, population_size, puzzle: FPuzzle):
-        super().__init__(population_size, puzzle)
-
     def eval_population(self, population: list[Solution]):
         """ :returns a map of each optimized solution to it's optimized score """
         population_to_score = {}
@@ -190,9 +187,6 @@ class LamarckAlgo(GeneticAlgo):
 
 
 class DarwinAlgo(GeneticAlgo):
-    def __init__(self, population_size, puzzle: FPuzzle):
-        super().__init__(population_size, puzzle)
-
     def eval_population(self, population: list[Solution]):
         """ :returns a map of each solution to it's optimized score """
         population_to_score = {}
@@ -208,13 +202,13 @@ class DarwinAlgo(GeneticAlgo):
 
 
 if __name__ == '__main__':
-    input_dict = parse_input(io='./5x5-normal.txt')
+    input_dict = parse_input(io='./5x5-easy.txt')
     n = input_dict['N']
     msf = MatrixSolutionFactory()
     puzzle = FPuzzle(n, input_dict['constraints'], input_dict['mat_init'], msf)
     constraints = input_dict['constraints']
-    ga = BasicGeneticAlgo(100, puzzle)
-    # ga = LamarckAlgo(100, puzzle)
+    # ga = BasicGeneticAlgo(100, puzzle)
+    ga = LamarckAlgo(100, puzzle)
     start = time.time()
     ga.run()
     end = time.time()

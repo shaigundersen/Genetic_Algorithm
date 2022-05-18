@@ -110,8 +110,8 @@ class GeneticAlgo(ABC):
         width = 0.3  # the width of the bars
 
         fig, ax = plt.subplots()
-        ax.bar(list(map(lambda x: x - width / 2, generations)), best, width, label='Best')
-        ax.bar(list(map(lambda x: x + width / 2, generations)), worst, width, label='Worst')
+        ax.bar(list(map(lambda x: x - width / 2, generations)), best, width, label='Best', color='#ff7f0e')
+        ax.bar(list(map(lambda x: x + width / 2, generations)), worst, width, label='Worst', color='#1f77b4')
         ax.plot(generations, avg, '-or', label='Avg')
 
         ax.set_ylabel('Score')

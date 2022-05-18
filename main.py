@@ -39,101 +39,187 @@ def parse_input(io):
 
     return dic
 
-
-class StrategySolver:
-    def __init__(self):
-        pass
-
-
 class GeneticAlgo(ABC):
     def __init__(self, population_size, puzzle: FPuzzle):
         self.population_size = population_size
-        self.population = [puzzle.get_random_solution() for i in range(population_size)]
         self.puzzle = puzzle
         self.found_sol = False
         self.best_sol = None
+        self.gen_scores = []
+        self.elite_percent = 0.35
+        self.mutate_prob = 0.1
+        self.crossover_prob = 0.5
 
     def run(self):
-        best_score = self.puzzle.get_max_constraints() + 1
-        generations_scores = []
-        gen = 1
+        population = self.generate_random_population()
+        gen = 0
         while not self.found_sol:
-            # eval sols
-            scores = self.eval_population()
-            cur_best = min(scores)
-            if cur_best < best_score:
-                best_score = cur_best
-            if gen % 100 == 0:
-                print("------------------------------")
-                print(f'gen -> {gen}')
-                print(f'best score -> {best_score}')
-                print(f'avg score -> {sum(scores)/len(scores)}')
-            generations_scores.append(scores)
-            weighted_population = self.create_weighted_population(scores)
-            self.create_new_population(weighted_population, scores)
+            population_to_score = self.eval_population(population)
+            self.save_stats(population_to_score)
+            if len(self.gen_scores) % 100 == 0:
+                self.print_gen_stats()
+            new_population = self.create_new_population(population_to_score)
+            population = new_population
             gen += 1
 
-    def create_new_population(self, weighted_population, scores):
-        new_pop = []
-        # elitism
-        elite_size = int(self.population_size * 0.25)
-        result = sorted(zip(self.population, scores), key=lambda tup: tup[1])
-        for i in range(elite_size):
-            new_pop.append(result[i][0])
-
-        for i in range(self.population_size - elite_size):  # generate new population with fixed size
-            parents = random.sample(weighted_population, 2)
-            sol_A, sol_B = parents[0], parents[1]
-            sol_A = sol_A.mutate(0.5)
-            sol_B = sol_B.mutate(0.5)
-            child_sol = sol_A.crossover(sol_B)
+    def create_new_population(self, population_to_score: dict[Solution, int]):
+        weighted_population = self.__create_weighted_population(population_to_score)
+        new_pop = self.elitism(population_to_score)
+        for i in range(self.population_size - len(new_pop)):
+            p = random.random()
+            # next child will be a result of either crossover between two parents or a copy of an individual
+            if p > self.crossover_prob:
+                parents = random.sample(weighted_population, 2)
+                sol_A, sol_B = parents[0], parents[1]
+                child_sol = sol_A.crossover(sol_B)
+            else:
+                child_sol = random.choice(weighted_population)
+            p = random.random()
+            # mutate next child with mutate_prob, else don't mutate
+            if p > self.mutate_prob:
+                child_sol = child_sol.mutate()
             new_pop.append(child_sol)
-        self.population = new_pop
+        return new_pop
 
-    # @abstractmethod
-    # def optimize_elite(self, elite):
-    #     pass
-    def create_weighted_population(self, scores):
+    def __create_weighted_population(self, population_to_score: dict[Solution, int]) -> list[Solution]:
+        """ returns a list of solutions where each solution appears *Score* times """
         weighted_population = []
         worst_score = self.puzzle.get_max_constraints()
-        for i, solution in enumerate(self.population):
-            for j in range(worst_score - scores[i]):
+        for solution in population_to_score.keys():
+            score = population_to_score[solution]
+            for j in range(worst_score - score):  # insert same solution with correlation to inverse best score
                 weighted_population.append(solution)
         return weighted_population
 
-    def eval_population(self):
-        scores = []
-        for solution in self.population:
+    @abstractmethod
+    def eval_population(self, population: list[Solution]):
+        pass
+
+    def plot_stat(self):
+        avg = []
+        best = []
+        worst = []
+        generations = []
+        for i, row in enumerate(self.gen_scores):
+            best.append(max(row))
+            worst.append(min(row))
+            avg.append(sum(row) / len(row))
+            generations.append(i + 1)
+
+        width = 0.3  # the width of the bars
+
+        fig, ax = plt.subplots()
+        ax.bar(list(map(lambda x: x - width / 2, generations)), best, width, label='Best')
+        ax.bar(list(map(lambda x: x + width / 2, generations)), worst, width, label='Worst')
+        ax.plot(generations, avg, '-or', label='Avg')
+
+        ax.set_ylabel('Score')
+        ax.set_xlabel('Generation (X 1000)')
+        ax.set_title('Overview of performance')
+        if len(generations) > 10:  # prettify X axis labels
+            generations = [generations[i] for i in range(0, len(generations), 2)]
+        ax.set_xticks(generations)
+        ax.legend()
+
+        fig.tight_layout()
+
+        plt.show()
+
+    def restart(self):
+        """ performs a restart with elite solutions and new random solutions """
+        pass
+        # scores = self.eval_population()
+        # new_pop = self.elitism(scores)
+        # for i in range(self.population_size - len(new_pop)):  # generate new population with fixed size
+        #     new_pop.append(puzzle.get_random_solution())
+        # self.population = new_pop
+        # self.population = [puzzle.get_random_solution() for i in range(self.population_size)]
+
+    def elitism(self, population_to_score: dict[Solution, int]) -> list[Solution]:
+        """ returns *elite_percent* of the best solutions """
+        population_to_score = {k: v for k, v in sorted(population_to_score.items(), key=lambda item: item[1])}
+        elite_population = []
+        elite_size = int(self.population_size * self.elite_percent)
+        i = 0
+        for solution in population_to_score.keys():
+            if i == elite_size:
+                break
+            elite_population.append(solution)
+            i += 1
+        return elite_population
+
+    def generate_random_population(self) -> list[Solution]:
+        return [self.puzzle.get_random_solution() for i in range(self.population_size)]
+
+    def save_stats(self, population_to_score: dict[Solution, int]):
+        best_score, worst_score = self.puzzle.get_best_worst_score(population_to_score)
+        self.gen_scores.append((best_score, worst_score))
+
+    def print_gen_stats(self):
+        best_score, worst_score = self.gen_scores[-1]
+        print(f'Gen No. {len(self.gen_scores)}\tBest score {best_score}\tWorst score {worst_score}')
+
+class BasicGeneticAlgo(GeneticAlgo):
+    def eval_population(self, population: list[Solution]):
+        """ :returns a map of each solution to it's score """
+        population_to_score = {}
+        for solution in population:
             score = self.puzzle.fitness_func(solution)
             if self.puzzle.is_terminal_state(score):  # all constraints are met
                 self.found_sol = True
                 self.best_sol = copy.deepcopy(solution)
-            scores.append(score)
-        return scores
+            population_to_score[solution] = score
+        return population_to_score
 
 
-# class LamarckAlgo(GeneticAlgo):
-#     def __init__(self, population_size, solution_factory: SolutionFactory, constraints, allow_opt=5):
-#         super().__init__(population_size, solution_factory, constraints)
-#         self.allow_opt = allow_opt
-#
-#     def optimize_elite(self, elite):
-#         for i in range(self.allow_opt):
-#             if i < len(elite):
-#                 elite[i].optimize()
+class LamarckAlgo(GeneticAlgo):
+    def __init__(self, population_size, puzzle: FPuzzle):
+        super().__init__(population_size, puzzle)
+
+    def eval_population(self, population: list[Solution]):
+        """ :returns a map of each optimized solution to it's optimized score """
+        population_to_score = {}
+        for solution in population:
+            optimized_solution = self.puzzle.optimization_func(solution)  # optimize before fitness
+            optimized_score = self.puzzle.fitness_func(optimized_solution)
+            if self.puzzle.is_terminal_state(optimized_score):  # all constraints are met
+                self.found_sol = True
+                self.best_sol = copy.deepcopy(optimized_solution)
+            population_to_score[optimized_solution] = optimized_score
+        return population_to_score
+
+
+class DarwinAlgo(GeneticAlgo):
+    def __init__(self, population_size, puzzle: FPuzzle):
+        super().__init__(population_size, puzzle)
+
+    def eval_population(self, population: list[Solution]):
+        """ :returns a map of each solution to it's optimized score """
+        population_to_score = {}
+        for solution in population:
+            score = self.puzzle.fitness_func(solution)  # so we know if this solution is a Terminal state
+            optimized_solution = self.puzzle.optimization_func(solution)
+            optimization_score = self.puzzle.fitness_func(optimized_solution)
+            if self.puzzle.is_terminal_state(score):  # all constraints are met
+                self.found_sol = True
+                self.best_sol = copy.deepcopy(solution)
+            population_to_score[solution] = optimization_score
+        return population_to_score
 
 
 if __name__ == '__main__':
-    input_dict = parse_input(io='./input.txt')
+    input_dict = parse_input(io='./5x5-normal.txt')
     n = input_dict['N']
     msf = MatrixSolutionFactory()
     puzzle = FPuzzle(n, input_dict['constraints'], input_dict['mat_init'], msf)
     constraints = input_dict['constraints']
-    ga = GeneticAlgo(100, puzzle)
+    ga = BasicGeneticAlgo(100, puzzle)
+    # ga = LamarckAlgo(100, puzzle)
     start = time.time()
     ga.run()
-    if ga.best_sol:
-        ga.best_sol.print_solution()
     end = time.time()
     print(f"GA finished in {end - start} seconds")
+    if ga.best_sol:
+        ga.best_sol.print_solution()
+        ga.plot_stat()
 

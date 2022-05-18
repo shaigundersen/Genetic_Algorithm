@@ -5,7 +5,7 @@ import math
 
 class Solution(ABC):
     @abstractmethod
-    def mutate(self, percent):
+    def mutate(self):
         pass
 
     @abstractmethod
@@ -20,6 +20,9 @@ class Solution(ABC):
     def fitness(self, constraints, seeded_solution):
         pass
 
+    @abstractmethod
+    def optimize(self, greater_constraints, seeded_solution):
+        pass
 
 
 class MatrixSolution(Solution):
@@ -32,21 +35,55 @@ class MatrixSolution(Solution):
             random.shuffle(base_permutation_copy)
             self.__solution.append(base_permutation_copy)
 
-    def mutate(self, percent):
+    def optimize(self, greater_constraints, seeded_solution):
+        """ optimization """
+        sol_copy = copy.deepcopy(self)
+        i = 0
+        it = iter(greater_constraints)
+        try:
+            # a = 1/0
+            while i < sol_copy.__N:
+                constraint = next(it)
+                if not sol_copy.__greater_sign(constraint):
+                    big, small = constraint
+                    # only swap with same row
+                    if big[0] == small[0]:
+                        temp = sol_copy.__solution[big[0] - 1][big[1] - 1]
+                        sol_copy.__solution[big[0] - 1][big[1] - 1] = sol_copy.__solution[small[0] - 1][small[1] - 1]
+                        sol_copy.__solution[small[0] - 1][small[1] - 1] = temp
+                        i += 1
+        except StopIteration:
+            for k in range(sol_copy.__N):
+                for j in range(sol_copy.__N):
+                    if i >= sol_copy.__N:
+                        break
+                    seed = seeded_solution.__solution[k][j]
+                    if seed != 0 and sol_copy.__solution[k][j] != seed:
+                        # swap places with where seed is supposed to be
+                        idx = sol_copy.__solution[k].index(seed)
+                        temp = sol_copy.__solution[k][j]
+                        sol_copy.__solution[k][j] = sol_copy.__solution[k][idx]
+                        sol_copy.__solution[k][idx] = temp
+                        i += 1
+                if i >= sol_copy.__N:
+                    break
+        return sol_copy
+
+    def __best_opti(self):
+        # self.fitness()
+        pass
+    def mutate(self):
         """
-        picks a percent of rows to mutate
-        for each picked row, swap two random elements
+        picks a random row to mutate and swap two random elements
         :return copy of current Solution after swapping
         """
         sol_copy = copy.deepcopy(self)
         N = len(self.__solution)
-        rows_to_mutate = math.ceil(N * percent)
-        rows = random.sample(range(N), rows_to_mutate)
-        for row in rows:
-            cols = random.sample(range(N), 2)  # pick two indexes from that row to be swapped
-            temp = sol_copy.__solution[row][cols[0]]
-            sol_copy.__solution[row][cols[0]] = sol_copy.__solution[row][cols[1]]
-            sol_copy.__solution[row][cols[1]] = temp
+        row = random.choice(range(N))
+        cols = random.sample(range(N), 2)  # pick two indexes from that row to be swapped
+        temp = sol_copy.__solution[row][cols[0]]
+        sol_copy.__solution[row][cols[0]] = sol_copy.__solution[row][cols[1]]
+        sol_copy.__solution[row][cols[1]] = temp
         # sol_copy._conform_seed()
         return sol_copy
 
@@ -93,6 +130,8 @@ class MatrixSolution(Solution):
     def fitness(self, greater_constraints, seeded_solution):
         # calc diff elements in each ROW
         fit = self.__consistent(self.__solution)
+        if fit > 0:
+            print('a')
         # calc diff elements in each COL
         fit += self.__consistent(zip(*self.__solution))
         # calc diff from seed (given digits)
@@ -159,8 +198,21 @@ class FPuzzle:
     def fitness_func(self, solution: Solution):
         return solution.fitness(self.__greater_constraints, self.__seeded_solution)
 
+    def optimization_func(self, solution: Solution):
+        return solution.optimize(self.__greater_constraints, self.__seeded_solution)
+
     def is_terminal_state(self, score):
         return score == 0
 
     def get_random_solution(self) -> Solution:
         return self.__factory.generate_random_solution(self.__board_size)
+
+    def get_best_worst_score(self, population_to_score: dict[Solution, int]):
+        best_score = self.get_max_constraints()  # being best means close to 0
+        worst_score = 0  # being worst means close to num constraints
+        for score in population_to_score.values():
+            if score < best_score:
+                best_score = score
+            if score > worst_score:
+                worst_score = score
+        return best_score, worst_score

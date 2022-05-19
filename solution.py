@@ -1,7 +1,6 @@
 import random
 import copy
 from abc import ABC, abstractmethod
-import math
 
 class Solution(ABC):
     @abstractmethod
@@ -36,17 +35,20 @@ class MatrixSolution(Solution):
             self.__solution.append(base_permutation_copy)
 
     def optimize(self, greater_constraints, seeded_solution):
-        """ optimization """
+        """
+         optimization swap places in row s.t -
+         1. constraints are met
+         2. seeded solution is met
+         """
         sol_copy = copy.deepcopy(self)
         i = 0
         it = iter(greater_constraints)
         try:
-            # a = 1/0
-            while i < sol_copy.__N:
+            while i < sol_copy.__N:  # allowed up-to N optimization operations
                 constraint = next(it)
                 if not sol_copy.__greater_sign(constraint):
                     big, small = constraint
-                    # only swap with same row
+                    # only swap with same row, if we swap columns rows might get ruined and it will destroy inner logic
                     if big[0] == small[0]:
                         temp = sol_copy.__solution[big[0] - 1][big[1] - 1]
                         sol_copy.__solution[big[0] - 1][big[1] - 1] = sol_copy.__solution[small[0] - 1][small[1] - 1]
@@ -69,9 +71,6 @@ class MatrixSolution(Solution):
                     break
         return sol_copy
 
-    def __best_opti(self):
-        # self.fitness()
-        pass
     def mutate(self):
         """
         picks a random row to mutate and swap two random elements
@@ -91,6 +90,7 @@ class MatrixSolution(Solution):
         """
         picks a random row - R.
         Append to grid3 all rows from grid1 until R and all rows from grid2 from R until the end
+        :return copy of current Solution after swapping
         """
         sol_copy = copy.deepcopy(self)
         N = len(self.__solution)
@@ -130,8 +130,6 @@ class MatrixSolution(Solution):
     def fitness(self, greater_constraints, seeded_solution):
         # calc diff elements in each ROW
         fit = self.__consistent(self.__solution)
-        if fit > 0:
-            print('a')
         # calc diff elements in each COL
         fit += self.__consistent(zip(*self.__solution))
         # calc diff from seed (given digits)
@@ -180,7 +178,7 @@ class MatrixSolutionFactory(SolutionFactory):
         return MatrixSolution.get_seeded_solution(N, seeds)
 
 
-class FPuzzle:
+class FutoshikiPuzzle:
     def __init__(self, N, greater_constraints, seed_constraints, factory: SolutionFactory):
         self.__board_size = N
         self.__greater_constraints = greater_constraints
@@ -188,10 +186,9 @@ class FPuzzle:
         self.__factory = factory
         self.__seeded_solution = factory.generate_seeded_solution(self.__board_size, self.__seed_constraints)
 
-    def get_size(self):
-        return self.__board_size
-
     def get_max_constraints(self):
+        """ :returns num of constraints to be met.
+         i.e each row and column is a permutation + initial board values + greater signs """
         return self.__board_size * (self.__board_size - 1) * 2 \
                + len(self.__greater_constraints) + len(self.__seed_constraints)
 

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 
 def parse_input(io):
+    """ simply parse i/o file.txt into a dict and return it """
     dic = {}
     with open(io, 'r') as f:
         lines = f.readlines()
@@ -36,7 +37,7 @@ def parse_input(io):
     return dic
 
 class GeneticAlgo(ABC):
-    def __init__(self, population_size, puzzle: FPuzzle):
+    def __init__(self, population_size, puzzle: FutoshikiPuzzle):
         self.population_size = population_size
         self.puzzle = puzzle
         self.found_sol = False
@@ -57,10 +58,17 @@ class GeneticAlgo(ABC):
             new_population = self.create_new_population(population_to_score)
             population = new_population
             gen += 1
-            if gen % 1000 == 0:
+            if not self.found_sol and gen % 1000 == 0:
                 population = self.restart()
 
     def create_new_population(self, population_to_score: dict[Solution, int]):
+        """
+        1. generate a weighted array
+        2. copy elite population "as-is" to our new population
+        3. generate child from crossover or replica of one parent with probability
+        4. mutate child with probability
+        :return: new population
+        """
         weighted_population = self.__create_weighted_population(population_to_score)
         new_pop = self.elitism(population_to_score)
         for i in range(self.population_size - len(new_pop)):
@@ -123,14 +131,8 @@ class GeneticAlgo(ABC):
         plt.show()
 
     def restart(self):
-        """ performs a restart with elite solutions and new random solutions """
+        """ performs a restart with new random solutions """
         return self.generate_random_population()
-        # scores = self.eval_population()
-        # new_pop = self.elitism(scores)
-        # for i in range(self.population_size - len(new_pop)):  # generate new population with fixed size
-        #     new_pop.append(puzzle.get_random_solution())
-        # self.population = new_pop
-        # self.population = [puzzle.get_random_solution() for i in range(self.population_size)]
 
     def elitism(self, population_to_score: dict[Solution, int]) -> list[Solution]:
         """ returns *elite_percent* of the best solutions """
@@ -240,7 +242,7 @@ def plot_compare2(lamarck, darwin):  # todo REMOVE when DONE
     plt.legend()
     plt.show()
 
-def p(): # todo REMOVE when DONE
+def p():  # todo REMOVE when DONE
     """ trying out graph plotting """
     best = []
     worst = []
@@ -269,7 +271,7 @@ if __name__ == '__main__':
     input_dict = parse_input(io='./5x5-easy.txt')
     n = input_dict['N']
     msf = MatrixSolutionFactory()
-    puzzle = FPuzzle(n, input_dict['constraints'], input_dict['mat_init'], msf)
+    puzzle = FutoshikiPuzzle(n, input_dict['constraints'], input_dict['mat_init'], msf)
     constraints = input_dict['constraints']
 
     # ga = BasicGeneticAlgo(gen_num, puzzle)
@@ -294,4 +296,5 @@ if __name__ == '__main__':
     for t in threads:
         t.join()
 
+    # plot_compare(basic=(algos[0].gen_scores, "Basic"),lamarck=(algos[1].gen_scores, "Lamark"), darwin=(algos[2].gen_scores, "Darwin"))
     plot_compare2(lamarck=(algos[0].gen_scores, "Lamark"), darwin=(algos[1].gen_scores, "Darwin"))

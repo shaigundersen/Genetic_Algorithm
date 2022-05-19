@@ -1,11 +1,7 @@
 import time
-
+import threading
 from solution import *
 import matplotlib.pyplot as plt
-UP = '^'
-RIGHT = '>'
-LEFT = '<'
-SPACE = ' '
 
 
 
@@ -61,6 +57,8 @@ class GeneticAlgo(ABC):
             new_population = self.create_new_population(population_to_score)
             population = new_population
             gen += 1
+            if gen % 1000 == 0:
+                population = self.restart()
 
     def create_new_population(self, population_to_score: dict[Solution, int]):
         weighted_population = self.__create_weighted_population(population_to_score)
@@ -100,35 +98,33 @@ class GeneticAlgo(ABC):
         best = []
         worst = []
         generations = []
-        for i, stats in enumerate(self.gen_scores):
+        len_scores = len(self.gen_scores)
+        # always show X bars
+        X = 30
+        num_bars = len_scores // X
+        for i in range(0, len_scores, max(1, num_bars)):  # use max if len < X
+            stats = self.gen_scores[i]
             best_score, worst_score, avg_score = stats
             best.append(best_score)
             worst.append(worst_score)
             avg.append(avg_score)
             generations.append(i + 1)
 
-        width = 0.3  # the width of the bars
 
-        fig, ax = plt.subplots()
-        ax.bar(list(map(lambda x: x - width / 2, generations)), best, width, label='Best', color='#ff7f0e')
-        ax.bar(list(map(lambda x: x + width / 2, generations)), worst, width, label='Worst', color='#1f77b4')
-        ax.plot(generations, avg, '-or', label='Avg')
+        width = len_scores * 0.01  # the width of the bars 1% of total len
 
-        ax.set_ylabel('Score')
-        ax.set_xlabel('Generation (X 1000)')
-        ax.set_title('Overview of performance')
-        if len(generations) > 10:  # prettify X axis labels
-            generations = [generations[i] for i in range(0, len(generations), 2)]
-        ax.set_xticks(generations)
-        ax.legend()
-
-        fig.tight_layout()
-
+        plt.bar(list(map(lambda x: x - width / 2, generations)), best, width, label='Best', color='#ff7f0e')
+        plt.bar(list(map(lambda x: x + width / 2, generations)), worst, width, label='Worst', color='#1f77b4')
+        plt.plot(generations, avg, '-or', ms=4, label='Avg')
+        plt.ylabel('Scores')
+        plt.xlabel('Generations')
+        plt.title('Overview of performance')
+        plt.legend()
         plt.show()
 
     def restart(self):
         """ performs a restart with elite solutions and new random solutions """
-        pass
+        return self.generate_random_population()
         # scores = self.eval_population()
         # new_pop = self.elitism(scores)
         # for i in range(self.population_size - len(new_pop)):  # generate new population with fixed size
@@ -203,20 +199,99 @@ class DarwinAlgo(GeneticAlgo):
             population_to_score[solution] = optimization_score
         return population_to_score
 
+def plot_compare(basic, lamarck, darwin):
+    basic_scores, basic_name = basic
+    lamarck_scores, lamarck_name = lamarck
+    darwin_scores, darwin_name = darwin
+    to_plot = [(get_gen_avg(basic_scores), basic_name),
+               (get_gen_avg(lamarck_scores), lamarck_name),
+               (get_gen_avg(darwin_scores), darwin_name)]
+    to_plot = sorted(to_plot, key=lambda stat: len(stat[0][1]))
+    for i in range(len(to_plot)):
+        plt.plot(to_plot[i][0][1], to_plot[i][0][0], '-o', ms=1, label=f'Avg_{to_plot[i][1]}', zorder=len(to_plot)-i)
+
+    plt.ylabel('Scores')
+    plt.xlabel('Generations')
+    plt.title('Different algorithms comparison Compare')
+    plt.legend()
+    plt.show()
+
+def get_gen_avg(scores):
+    generations = []
+    avg = []
+    for i, stats in enumerate(scores):
+        best_score, worst_score, avg_score = stats
+        avg.append(avg_score)
+        generations.append(i + 1)
+    return avg, generations
+
+
+def plot_compare2(lamarck, darwin):  # todo REMOVE when DONE
+    lamarck_scores, lamarck_name = lamarck
+    darwin_scores, darwin_name = darwin
+    to_plot = [(get_gen_avg(lamarck_scores), lamarck_name), (get_gen_avg(darwin_scores), darwin_name)]
+    to_plot = sorted(to_plot, key=lambda stat: len(stat[0][1]))
+    for i in range(len(to_plot)):
+        plt.plot(to_plot[i][0][1], to_plot[i][0][0], '-o', ms=1, label=f'Avg_{to_plot[i][1]}', zorder=len(to_plot)-i)
+
+    plt.ylabel('Scores')
+    plt.xlabel('Generations')
+    plt.title('Different algorithms comparison Compare')
+    plt.legend()
+    plt.show()
+
+def p(): # todo REMOVE when DONE
+    """ trying out graph plotting """
+    best = []
+    worst = []
+    avg = []
+    generations = []
+    r = 30
+    width = r*0.01
+    # always show 30 bars
+    for i in range(0, r, max(1, r // 30)):
+        best.append(20)
+        worst.append(2)
+        avg.append(10)
+        generations.append(i + 1)
+
+    plt.bar(list(map(lambda x: x - width / 2, generations)), best, width, label='Best', color='#ff7f0e')
+    plt.bar(list(map(lambda x: x + width / 2, generations)), worst, width, label='Worst', color='#1f77b4')
+    plt.plot(generations, avg, '-,r', ms=4, label='Avg')
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
 
 if __name__ == '__main__':
+    # p()
+
+    gen_num = 100
     input_dict = parse_input(io='./5x5-easy.txt')
     n = input_dict['N']
     msf = MatrixSolutionFactory()
     puzzle = FPuzzle(n, input_dict['constraints'], input_dict['mat_init'], msf)
     constraints = input_dict['constraints']
-    # ga = BasicGeneticAlgo(100, puzzle)
-    ga = LamarckAlgo(100, puzzle)
-    start = time.time()
-    ga.run()
-    end = time.time()
-    print(f"GA finished in {end - start} seconds")
-    if ga.best_sol:
-        ga.best_sol.print_solution()
-        ga.plot_stat()
 
+    # ga = BasicGeneticAlgo(gen_num, puzzle)
+    # ga = LamarckAlgo(gen_num, puzzle)
+    # ga = DarwinAlgo(gen_num, puzzle)
+    # start = time.time()
+    # ga.run()
+    # end = time.time()
+    # print(f"GA finished in {end - start} seconds")
+    # if ga.best_sol:
+    #     ga.best_sol.print_solution()
+    #     ga.plot_stat()
+
+    ###### for plotting ########
+    # algos = [BasicGeneticAlgo(gen_num, puzzle), LamarckAlgo(gen_num, puzzle), DarwinAlgo(gen_num, puzzle)]
+    algos = [LamarckAlgo(gen_num, puzzle), DarwinAlgo(gen_num, puzzle)]
+    threads = []
+    for alg in algos:
+        t = threading.Thread(target=alg.run)
+        threads.append(t)
+        t.start()
+    for t in threads:
+        t.join()
+
+    plot_compare2(lamarck=(algos[0].gen_scores, "Lamark"), darwin=(algos[1].gen_scores, "Darwin"))

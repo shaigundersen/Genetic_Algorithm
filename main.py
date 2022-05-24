@@ -166,6 +166,9 @@ class GeneticAlgo(ABC):
             f'Gen No. {len(self.gen_scores)}\tBest score {best_score}\tWorst score {worst_score}\tAvg score {avg_score}'
         )
 
+    def print_solution(self):
+        self.puzzle.print_solution(self.best_sol)
+
 class BasicGeneticAlgo(GeneticAlgo):
     def eval_population(self, population: List[Solution]):
         """ :returns a map of each solution to it's score """
@@ -275,7 +278,7 @@ def execute_basic_alg(gen_num, puzzle):
     ga_basic = BasicGeneticAlgo(gen_num, puzzle)
     ga_basic.run()
     if ga_basic.best_sol:
-        ga_basic.best_sol.print_solution()
+        ga_basic.print_solution()
         ga_basic.plot_stat()
 
 def execute_lamarck_alg(gen_num, puzzle):
@@ -283,7 +286,7 @@ def execute_lamarck_alg(gen_num, puzzle):
     ga_lamarck = LamarckAlgo(gen_num, puzzle)
     ga_lamarck.run()
     if ga_lamarck.best_sol:
-        ga_lamarck.best_sol.print_solution()
+        ga_lamarck.print_solution()
         ga_lamarck.plot_stat()
 
 def execute_darwin_alg(gen_num, puzzle):
@@ -291,14 +294,14 @@ def execute_darwin_alg(gen_num, puzzle):
     ga_darwin = DarwinAlgo(gen_num, puzzle)
     ga_darwin.run()
     if ga_darwin.best_sol:
-        ga_darwin.best_sol.print_solution()
+        ga_darwin.print_solution()
         ga_darwin.plot_stat()
 
 if __name__ == '__main__':
     # p()
 
     gen_num = 100
-    input_dict = parse_input(io='./6x6-easy.txt')
+    input_dict = parse_input(io='./5x5-easy.txt')
     n = input_dict['N']
     msf = MatrixSolutionFactory()
     puzzle = FutoshikiPuzzle(n, input_dict['constraints'], input_dict['mat_init'], msf)

@@ -12,9 +12,9 @@ class Solution(ABC):
     def crossover(self, solution: 'Solution'):
         pass
 
-    @abstractmethod
-    def print_solution(self):
-        pass
+    # @abstractmethod
+    # def print_solution(self):
+    #     pass
 
     @abstractmethod
     def fitness(self, constraints, seeded_solution):
@@ -24,6 +24,9 @@ class Solution(ABC):
     def optimize(self, greater_constraints, seeded_solution):
         pass
 
+    @abstractmethod
+    def get_sol(self):
+        pass
 
 class MatrixSolution(Solution):
     def __init__(self, N):
@@ -102,17 +105,17 @@ class MatrixSolution(Solution):
         # sol_copy._conform_seed()
         return sol_copy
 
-    def print_solution(self):
-        N = len(self.__solution)
-        print(2 * N * "*" + "*")
-        for i in range(N):
-            print("|", end='')
-            for j in range(N):
-                if j == N - 1:
-                    print(self.__solution[i][j], end='|\n')
-                else:
-                    print(self.__solution[i][j], end=' ')
-        print(2 * N * "*" + "*")
+    # def print_solution(self):
+    #     N = len(self.__solution)
+    #     print(2 * N * "*" + "*")
+    #     for i in range(N):
+    #         print("|", end='')
+    #         for j in range(N):
+    #             if j == N - 1:
+    #                 print(self.__solution[i][j], end='|\n')
+    #             else:
+    #                 print(self.__solution[i][j], end=' ')
+    #     print(2 * N * "*" + "*")
 
 
     def __consistent(self, solution):
@@ -151,6 +154,9 @@ class MatrixSolution(Solution):
     def __greater_sign(self, constraint):
         big, small = constraint
         return self.__solution[big[0] - 1][big[1] - 1] > self.__solution[small[0] - 1][small[1] - 1]
+
+    def get_sol(self):
+        return self.__solution
 
     @classmethod
     def get_seeded_solution(cls, N, seeds):
@@ -218,14 +224,24 @@ class FutoshikiPuzzle:
             sum += score
         return best_score, worst_score, sum / len(population_to_score)
 
-    # def print_solution(self, solution: Solution):
-    #     N = len(solution.__solution)
-    #     print(2 * N * "*" + "*")
-    #     for i in range(N):
-    #         print("|", end='')
-    #         for j in range(N):
-    #             if j == N - 1:
-    #                 print(solution.__solution[i][j], end='|\n')
-    #             else:
-    #                 print(solution.__solution[i][j], end=' ')
-    #     print(2 * N * "*" + "*")
+    def print_solution(self, solution: Solution):
+        N = len(solution.get_sol())
+        solution_to_print = solution.get_sol()
+        print(7 * N * "*" + "*")
+        for i in range(N):
+            print("|", end='')
+            for j in range(N):
+                if j == N - 1:
+                    print(str(solution_to_print[i][j]) + " ", end='|\n')
+                else:
+                    if ((i+1,j+2),(i+1,j+1)) in self.__greater_constraints:
+                        print(str(solution_to_print[i][j]) + " | < |", end=' ')
+                    elif ((i+1,j+1),(i+1,j+2)) in self.__greater_constraints:
+                        print(str(solution_to_print[i][j]) + " | > |", end=' ')
+                    else:
+                        print(str(solution_to_print[i][j]) + " |   |", end=' ')
+            if not i == N-1:
+                print("--" * 4 * (N-1)+"-"*4)
+
+                print("--" * 4 * (N-1)+"-"*4)
+        print(7 * N * "*" + "*")

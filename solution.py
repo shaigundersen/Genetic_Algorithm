@@ -1,6 +1,7 @@
 import random
 import copy
 from abc import ABC, abstractmethod
+from typing import Dict
 
 class Solution(ABC):
     @abstractmethod
@@ -113,6 +114,7 @@ class MatrixSolution(Solution):
                     print(self.__solution[i][j], end=' ')
         print(2 * N * "*" + "*")
 
+
     def __consistent(self, solution):
         """ returns num of diff elements in each row. Best case is 0 when each row is a permutation """
         return sum(self.__N - len(set(row)) for row in solution)
@@ -204,7 +206,7 @@ class FutoshikiPuzzle:
     def get_random_solution(self) -> Solution:
         return self.__factory.generate_random_solution(self.__board_size)
 
-    def get_best_worst_avg_score(self, population_to_score: dict[Solution, int]):
+    def get_best_worst_avg_score(self, population_to_score: Dict[Solution, int]):
         best_score = self.get_max_constraints()  # being best means close to 0
         worst_score = 0  # being worst means close to num constraints
         sum = 0
@@ -215,3 +217,15 @@ class FutoshikiPuzzle:
                 worst_score = score
             sum += score
         return best_score, worst_score, sum / len(population_to_score)
+
+    # def print_solution(self, solution: Solution):
+    #     N = len(solution.__solution)
+    #     print(2 * N * "*" + "*")
+    #     for i in range(N):
+    #         print("|", end='')
+    #         for j in range(N):
+    #             if j == N - 1:
+    #                 print(solution.__solution[i][j], end='|\n')
+    #             else:
+    #                 print(solution.__solution[i][j], end=' ')
+    #     print(2 * N * "*" + "*")

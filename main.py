@@ -2,7 +2,8 @@ import time
 import threading
 from solution import *
 import matplotlib.pyplot as plt
-
+from typing import Dict
+from typing import List
 
 
 def parse_input(io):
@@ -43,13 +44,14 @@ class GeneticAlgo(ABC):
         self.found_sol = False
         self.best_sol = None
         self.gen_scores = []
-        self.elite_percent = 0.35
+        self.elite_percent = 0.5
         self.mutate_prob = 0.1
         self.crossover_prob = 0.5
 
     def run(self):
         population = self.generate_random_population()
         gen = 0
+        restart_counter = 0
         while not self.found_sol:
             population_to_score = self.eval_population(population)
             self.save_stats(population_to_score)
@@ -58,10 +60,14 @@ class GeneticAlgo(ABC):
             new_population = self.create_new_population(population_to_score)
             population = new_population
             gen += 1
-            if not self.found_sol and gen % 1000 == 0:
+            if not self.found_sol and gen % 2000 == 0:
                 population = self.restart()
+                restart_counter += 1
+            if restart_counter == 10:
+                self.found_sol = True
 
-    def create_new_population(self, population_to_score: dict[Solution, int]):
+
+    def create_new_population(self, population_to_score: Dict[Solution, int]):
         """
         1. generate a weighted array
         2. copy elite population "as-is" to our new population
@@ -87,7 +93,7 @@ class GeneticAlgo(ABC):
             new_pop.append(child_sol)
         return new_pop
 
-    def __create_weighted_population(self, population_to_score: dict[Solution, int]) -> list[Solution]:
+    def __create_weighted_population(self, population_to_score: Dict[Solution, int]) -> List[Solution]:
         """ returns a list of solutions where each solution appears *Score* times """
         weighted_population = []
         worst_score = self.puzzle.get_max_constraints()
@@ -98,7 +104,7 @@ class GeneticAlgo(ABC):
         return weighted_population
 
     @abstractmethod
-    def eval_population(self, population: list[Solution]):
+    def eval_population(self, population: List[Solution]):
         pass
 
     def plot_stat(self):
@@ -134,7 +140,7 @@ class GeneticAlgo(ABC):
         """ performs a restart with new random solutions """
         return self.generate_random_population()
 
-    def elitism(self, population_to_score: dict[Solution, int]) -> list[Solution]:
+    def elitism(self, population_to_score: Dict[Solution, int]) -> List[Solution]:
         """ returns *elite_percent* of the best solutions """
         population_to_score = {k: v for k, v in sorted(population_to_score.items(), key=lambda item: item[1])}
         elite_population = []
@@ -147,10 +153,10 @@ class GeneticAlgo(ABC):
             i += 1
         return elite_population
 
-    def generate_random_population(self) -> list[Solution]:
+    def generate_random_population(self) -> List[Solution]:
         return [self.puzzle.get_random_solution() for i in range(self.population_size)]
 
-    def save_stats(self, population_to_score: dict[Solution, int]):
+    def save_stats(self, population_to_score: Dict[Solution, int]):
         best_score, worst_score, avg_score = self.puzzle.get_best_worst_avg_score(population_to_score)
         self.gen_scores.append((best_score, worst_score, avg_score))
 
@@ -161,7 +167,7 @@ class GeneticAlgo(ABC):
         )
 
 class BasicGeneticAlgo(GeneticAlgo):
-    def eval_population(self, population: list[Solution]):
+    def eval_population(self, population: List[Solution]):
         """ :returns a map of each solution to it's score """
         population_to_score = {}
         for solution in population:
@@ -174,7 +180,7 @@ class BasicGeneticAlgo(GeneticAlgo):
 
 
 class LamarckAlgo(GeneticAlgo):
-    def eval_population(self, population: list[Solution]):
+    def eval_population(self, population: List[Solution]):
         """ :returns a map of each optimized solution to it's optimized score """
         population_to_score = {}
         for solution in population:
@@ -188,7 +194,7 @@ class LamarckAlgo(GeneticAlgo):
 
 
 class DarwinAlgo(GeneticAlgo):
-    def eval_population(self, population: list[Solution]):
+    def eval_population(self, population: List[Solution]):
         """ :returns a map of each solution to it's optimized score """
         population_to_score = {}
         for solution in population:
@@ -264,37 +270,75 @@ def p():  # todo REMOVE when DONE
     plt.legend()
     plt.show()
 
+def execute_basic_alg(gen_num, puzzle):
+    print("Executing Basic Algorithm\n")
+    ga_basic = BasicGeneticAlgo(gen_num, puzzle)
+    ga_basic.run()
+    if ga_basic.best_sol:
+        ga_basic.best_sol.print_solution()
+        ga_basic.plot_stat()
+
+def execute_lamarck_alg(gen_num, puzzle):
+    print("Executing Lamarck Algorithm")
+    ga_lamarck = LamarckAlgo(gen_num, puzzle)
+    ga_lamarck.run()
+    if ga_lamarck.best_sol:
+        ga_lamarck.best_sol.print_solution()
+        ga_lamarck.plot_stat()
+
+def execute_darwin_alg(gen_num, puzzle):
+    print("Executing Darwin Algorithm")
+    ga_darwin = DarwinAlgo(gen_num, puzzle)
+    ga_darwin.run()
+    if ga_darwin.best_sol:
+        ga_darwin.best_sol.print_solution()
+        ga_darwin.plot_stat()
+
 if __name__ == '__main__':
     # p()
 
     gen_num = 100
-    input_dict = parse_input(io='./5x5-easy.txt')
+    input_dict = parse_input(io='./6x6-easy.txt')
     n = input_dict['N']
     msf = MatrixSolutionFactory()
     puzzle = FutoshikiPuzzle(n, input_dict['constraints'], input_dict['mat_init'], msf)
     constraints = input_dict['constraints']
 
+    algorithm_selection = int(input("Enter a selection:\n1. Run all algorithms\n2. Run only one algorithm\n"))
+    if algorithm_selection == 1:
+        execute_basic_alg(gen_num, puzzle)
+        execute_lamarck_alg(gen_num, puzzle)
+        execute_darwin_alg(gen_num, puzzle)
+    elif algorithm_selection == 2:
+        specific_algorithm_selection = int(input("1. Basic\n2.Lamarck\n3.Darwin\n"))
+        if specific_algorithm_selection == 1:
+            execute_basic_alg(gen_num, puzzle)
+        elif specific_algorithm_selection == 2:
+            execute_lamarck_alg(gen_num, puzzle)
+        elif specific_algorithm_selection == 3:
+            execute_darwin_alg(gen_num, puzzle)
+
     # ga = BasicGeneticAlgo(gen_num, puzzle)
-    # ga = LamarckAlgo(gen_num, puzzle)
-    # ga = DarwinAlgo(gen_num, puzzle)
+    # # ga = LamarckAlgo(gen_num, puzzle)
+    # # ga = DarwinAlgo(gen_num, puzzle)
     # start = time.time()
     # ga.run()
     # end = time.time()
     # print(f"GA finished in {end - start} seconds")
     # if ga.best_sol:
-    #     ga.best_sol.print_solution()
-    #     ga.plot_stat()
+    #      ga.best_sol.print_solution()
+    #      ga.plot_stat()
 
     ###### for plotting ########
     # algos = [BasicGeneticAlgo(gen_num, puzzle), LamarckAlgo(gen_num, puzzle), DarwinAlgo(gen_num, puzzle)]
-    algos = [LamarckAlgo(gen_num, puzzle), DarwinAlgo(gen_num, puzzle)]
-    threads = []
-    for alg in algos:
-        t = threading.Thread(target=alg.run)
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+    #algos = [LamarckAlgo(gen_num, puzzle), DarwinAlgo(gen_num, puzzle)]
+    #threads = []
+    # for alg in algos:
+    #    t = threading.Thread(tar5get=alg.run)
+    #    threads.append(t)
+    #    t.start()
+    #for t in threads:
+    #    t.join()
 
-    # plot_compare(basic=(algos[0].gen_scores, "Basic"),lamarck=(algos[1].gen_scores, "Lamark"), darwin=(algos[2].gen_scores, "Darwin"))
-    plot_compare2(lamarck=(algos[0].gen_scores, "Lamark"), darwin=(algos[1].gen_scores, "Darwin"))
+    #plot_compare(basic=(algos[0].gen_scores, "Basic"),lamarck=(algos[1].gen_scores, "Lamark"), darwin=(algos[2].gen_scores, "Darwin"))
+    #plot_compare2(lamarck=(algos[0].gen_scores, "Lamark"), darwin=(algos[1].gen_scores, "Darwin"))

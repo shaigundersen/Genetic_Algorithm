@@ -53,13 +53,13 @@ class MatrixSolution(Solution):
                 constraint = next(it)
                 if not sol_copy.__greater_sign(constraint):
                     big, small = constraint
-                    # only swap with same row, if we swap columns rows might get ruined and it will destroy inner logic
+                    # make greater sign conform with row
                     if big[0] == small[0]:
                         temp = sol_copy.__solution[big[0] - 1][big[1] - 1]
                         sol_copy.__solution[big[0] - 1][big[1] - 1] = sol_copy.__solution[small[0] - 1][small[1] - 1]
                         sol_copy.__solution[small[0] - 1][small[1] - 1] = temp
                         i += 1
-                    else:  # column swapping must swap 4 elements
+                    else:  # make greater sign conform with col  must swap 4 elements this time
                         swappable1 = sol_copy.__solution[big[0] - 1][big[1] - 1]
                         swappable2 = sol_copy.__solution[small[0] - 1][small[1] - 1]
                         # swap in the first row

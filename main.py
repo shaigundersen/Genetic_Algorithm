@@ -4,7 +4,7 @@ from solution import *
 import matplotlib.pyplot as plt
 from typing import Dict
 from typing import List
-
+import sys
 
 def parse_input(io):
     """ simply parse i/o file.txt into a dict and return it """
@@ -61,10 +61,17 @@ class GeneticAlgo(ABC):
             population = new_population
             gen += 1
             if not self.found_sol and gen % 2000 == 0:
-                population = self.restart()
-                restart_counter += 1
-            if restart_counter == 10:
-                self.found_sol = True
+                if restart_counter == 10:
+                    print("Genetic Algo didn't find an optimal solution")
+                    print("printing best solution so far..")
+                    population_to_score = {k: v for k, v in
+                                           sorted(population_to_score.items(), key=lambda item: item[1])}
+                    self.best_sol = iter(population_to_score).__next__()
+                    self.found_sol = True
+                else:
+                    population = self.restart()
+                    restart_counter += 1
+
 
 
     def create_new_population(self, population_to_score: Dict[Solution, int]):
@@ -163,8 +170,10 @@ class GeneticAlgo(ABC):
     def print_gen_stats(self):
         best_score, worst_score, avg_score = self.gen_scores[-1]
         print(
-            f'Gen No. {len(self.gen_scores)}\tBest score {best_score}\tWorst score {worst_score}\tAvg score {avg_score}'
+            f'Gen No. {len(self.gen_scores)}\tBest score {best_score}\tWorst score {worst_score}\tAvg score '
+            f'{round(avg_score, 2)}'
         )
+
 
     def print_solution(self):
         self.puzzle.print_solution(self.best_sol)
@@ -236,43 +245,6 @@ def get_gen_avg(scores):
         generations.append(i + 1)
     return avg, generations
 
-
-def plot_compare2(lamarck, darwin):  # todo REMOVE when DONE
-    lamarck_scores, lamarck_name = lamarck
-    darwin_scores, darwin_name = darwin
-    to_plot = [(get_gen_avg(lamarck_scores), lamarck_name), (get_gen_avg(darwin_scores), darwin_name)]
-    to_plot = sorted(to_plot, key=lambda stat: len(stat[0][1]))
-    for i in range(len(to_plot)):
-        plt.plot(to_plot[i][0][1], to_plot[i][0][0], '-o', ms=1, label=f'Avg_{to_plot[i][1]}', zorder=len(to_plot)-i)
-
-    plt.ylabel('Scores')
-    plt.xlabel('Generations')
-    plt.title('Different algorithms comparison Compare')
-    plt.legend()
-    plt.show()
-
-def p():  # todo REMOVE when DONE
-    """ trying out graph plotting """
-    best = []
-    worst = []
-    avg = []
-    generations = []
-    r = 30
-    width = r*0.01
-    # always show 30 bars
-    for i in range(0, r, max(1, r // 30)):
-        best.append(20)
-        worst.append(2)
-        avg.append(10)
-        generations.append(i + 1)
-
-    plt.bar(list(map(lambda x: x - width / 2, generations)), best, width, label='Best', color='#ff7f0e')
-    plt.bar(list(map(lambda x: x + width / 2, generations)), worst, width, label='Worst', color='#1f77b4')
-    plt.plot(generations, avg, '-,r', ms=4, label='Avg')
-    plt.tight_layout()
-    plt.legend()
-    plt.show()
-
 def execute_basic_alg(gen_num, puzzle):
     print("Executing Basic Algorithm\n")
     ga_basic = BasicGeneticAlgo(gen_num, puzzle)
@@ -298,50 +270,36 @@ def execute_darwin_alg(gen_num, puzzle):
         ga_darwin.plot_stat()
 
 if __name__ == '__main__':
-    # p()
+    if len(sys.argv) != 2:
+        sys.exit("Error: program expect one argument which is a path to a config file.txt")
+    else:
+        file_path = sys.argv[-1]
 
     gen_num = 100
-    input_dict = parse_input(io='./5x5-easy.txt')
+    input_dict = parse_input(io=file_path)
     n = input_dict['N']
     msf = MatrixSolutionFactory()
     puzzle = FutoshikiPuzzle(n, input_dict['constraints'], input_dict['mat_init'], msf)
     constraints = input_dict['constraints']
 
-    algorithm_selection = int(input("Enter a selection:\n1. Run all algorithms\n2. Run only one algorithm\n"))
-    if algorithm_selection == 1:
-        execute_basic_alg(gen_num, puzzle)
-        execute_lamarck_alg(gen_num, puzzle)
-        execute_darwin_alg(gen_num, puzzle)
-    elif algorithm_selection == 2:
-        specific_algorithm_selection = int(input("1. Basic\n2.Lamarck\n3.Darwin\n"))
-        if specific_algorithm_selection == 1:
+    try:
+        algorithm_selection = int(input("Enter a selection:\n1. Run all algorithms\n2. Run only one algorithm\n"))
+        if algorithm_selection == 1:
             execute_basic_alg(gen_num, puzzle)
-        elif specific_algorithm_selection == 2:
             execute_lamarck_alg(gen_num, puzzle)
-        elif specific_algorithm_selection == 3:
             execute_darwin_alg(gen_num, puzzle)
+        elif algorithm_selection == 2:
+            specific_algorithm_selection = int(input("1. Basic\n2.Lamarck\n3.Darwin\n"))
+            if specific_algorithm_selection == 1:
+                execute_basic_alg(gen_num, puzzle)
+            elif specific_algorithm_selection == 2:
+                execute_lamarck_alg(gen_num, puzzle)
+            elif specific_algorithm_selection == 3:
+                execute_darwin_alg(gen_num, puzzle)
+            else:
+                raise ValueError
+        else:
+            raise ValueError
+    except ValueError:
+        sys.exit("Error: Please enter a valid selection")
 
-    # ga = BasicGeneticAlgo(gen_num, puzzle)
-    # # ga = LamarckAlgo(gen_num, puzzle)
-    # # ga = DarwinAlgo(gen_num, puzzle)
-    # start = time.time()
-    # ga.run()
-    # end = time.time()
-    # print(f"GA finished in {end - start} seconds")
-    # if ga.best_sol:
-    #      ga.best_sol.print_solution()
-    #      ga.plot_stat()
-
-    ###### for plotting ########
-    # algos = [BasicGeneticAlgo(gen_num, puzzle), LamarckAlgo(gen_num, puzzle), DarwinAlgo(gen_num, puzzle)]
-    #algos = [LamarckAlgo(gen_num, puzzle), DarwinAlgo(gen_num, puzzle)]
-    #threads = []
-    # for alg in algos:
-    #    t = threading.Thread(tar5get=alg.run)
-    #    threads.append(t)
-    #    t.start()
-    #for t in threads:
-    #    t.join()
-
-    #plot_compare(basic=(algos[0].gen_scores, "Basic"),lamarck=(algos[1].gen_scores, "Lamark"), darwin=(algos[2].gen_scores, "Darwin"))
-    #plot_compare2(lamarck=(algos[0].gen_scores, "Lamark"), darwin=(algos[1].gen_scores, "Darwin"))

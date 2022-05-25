@@ -41,8 +41,9 @@ class MatrixSolution(Solution):
     def optimize(self, greater_constraints, seeded_solution):
         """
          optimization swap places in row s.t -
-         1. constraints are met
-         2. seeded solution is met
+         1. greater constraints in Row are met
+         2. greater constraints in Col are met
+         2. seeded solution constraints are met
          """
         sol_copy = copy.deepcopy(self)
         i = 0
@@ -58,6 +59,19 @@ class MatrixSolution(Solution):
                         sol_copy.__solution[big[0] - 1][big[1] - 1] = sol_copy.__solution[small[0] - 1][small[1] - 1]
                         sol_copy.__solution[small[0] - 1][small[1] - 1] = temp
                         i += 1
+                    else:  # column swapping must swap 4 elements
+                        swappable1 = sol_copy.__solution[big[0] - 1][big[1] - 1]
+                        swappable2 = sol_copy.__solution[small[0] - 1][small[1] - 1]
+                        # swap in the first row
+                        swap2_idx = sol_copy.__solution[big[0] - 1].index(swappable2)
+                        sol_copy.__solution[big[0] - 1][big[1] - 1] = swappable2
+                        sol_copy.__solution[big[0] - 1][swap2_idx] = swappable1
+                        # swap in the second row
+                        swap1_idx = sol_copy.__solution[small[0] - 1].index(swappable1)
+                        sol_copy.__solution[small[0] - 1][small[1] - 1] = swappable1
+                        sol_copy.__solution[small[0] - 1][swap1_idx] = swappable2
+                        i += 1
+
         except StopIteration:
             for k in range(sol_copy.__N):
                 for j in range(sol_copy.__N):
@@ -105,19 +119,6 @@ class MatrixSolution(Solution):
         # sol_copy._conform_seed()
         return sol_copy
 
-    # def print_solution(self):
-    #     N = len(self.__solution)
-    #     print(2 * N * "*" + "*")
-    #     for i in range(N):
-    #         print("|", end='')
-    #         for j in range(N):
-    #             if j == N - 1:
-    #                 print(self.__solution[i][j], end='|\n')
-    #             else:
-    #                 print(self.__solution[i][j], end=' ')
-    #     print(2 * N * "*" + "*")
-
-
     def __consistent(self, solution):
         """ returns num of diff elements in each row. Best case is 0 when each row is a permutation """
         return sum(self.__N - len(set(row)) for row in solution)
@@ -133,6 +134,7 @@ class MatrixSolution(Solution):
         return count
 
     def fitness(self, greater_constraints, seeded_solution):
+        """ our fitness func sums up all miss matches in a given solution """
         # calc diff elements in each ROW
         fit = self.__consistent(self.__solution)
         # calc diff elements in each COL
@@ -213,6 +215,7 @@ class FutoshikiPuzzle:
         return self.__factory.generate_random_solution(self.__board_size)
 
     def get_best_worst_avg_score(self, population_to_score: Dict[Solution, int]):
+        """ simple util func to save data for plotting """
         best_score = self.get_max_constraints()  # being best means close to 0
         worst_score = 0  # being worst means close to num constraints
         sum = 0
@@ -226,10 +229,20 @@ class FutoshikiPuzzle:
 
     def print_solution(self, solution: Solution):
         N = len(solution.get_sol())
+        # create the extra rows for pretty printing
+        new_rows = [['     ' for j in range(N)] for i in range(N-1)]
+        for big, small in self.__greater_constraints:
+            if big[1] == small[1]:  # same column
+                if big[0] < small[0]:  # sign should be V
+                    new_rows[big[0] - 1][big[1] - 1] = '  v  '
+                else:
+                    new_rows[small[0] - 1][small[1] - 1] = '  ˄  '
+
         solution_to_print = solution.get_sol()
+
         print(7 * N * "*" + "*")
         for i in range(N):
-            print("|", end='')
+            print("|", end=' ')
             for j in range(N):
                 if j == N - 1:
                     print(str(solution_to_print[i][j]) + " ", end='|\n')
@@ -241,7 +254,10 @@ class FutoshikiPuzzle:
                     else:
                         print(str(solution_to_print[i][j]) + " |   |", end=' ')
             if not i == N-1:
-                print("--" * 4 * (N-1)+"-"*4)
+                for k in range(N):
+                    if k == N - 1:
+                        print(new_rows[i][k], end='\n')
+                    else:
+                        print(new_rows[i][k], end='   ')
 
-                print("--" * 4 * (N-1)+"-"*4)
         print(7 * N * "*" + "*")

@@ -40,7 +40,7 @@ class MatrixSolution(Solution):
 
     def optimize(self, greater_constraints, seeded_solution):
         """
-         optimization swap places in row s.t -
+         optimization -
          1. greater constraints in Row are met
          2. greater constraints in Col are met
          2. seeded solution constraints are met
